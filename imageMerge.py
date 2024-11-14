@@ -4,10 +4,12 @@ import os
 
 def create_merged_svg(
     template_svg_path,
-    title, 
-    date_text, 
-    description_text, 
-    sankey_svg_path
+    company_name_text,
+    type_text_value,
+    citation_text,
+    description_text,
+    sankey_svg_path,
+    center_description_text
 ):
     # Import the SVG template first to get its dimensions
     template = sg.fromfile(template_svg_path)
@@ -29,31 +31,49 @@ def create_merged_svg(
     title_x = template_width * 0.05  # 5% from left
     title_y = template_height * 0.08  # 8% from top
     
-    date_x = template_width * 0.95  # 95% from left
+    text_right_margin = template_width * 0.95  # 95% from left
     date_y = title_y  # Align with title vertically
+    desc_y = date_y + 15  # 15 pixels below the source/citation
     
-    desc_y = date_y + 30  # 30px below date
+    # Create company name text element (bold)
+    company_name = sg.TextElement(title_x, title_y, company_name_text,
+                              size=24,
+                              anchor='start')
+    company_name.root.attrib['style'] = 'font-weight: bold'
     
-    # Create text elements with adjusted positions
-    title_svg = sg.TextElement(title_x, title_y, title,
-                             size=28,
-                             weight="normal", 
-                             font="Arial")
+    # Create type text element (not bold)
+    type_text = sg.TextElement(title_x + len(company_name_text) * 18, title_y, type_text_value,
+                              size=24,
+                              anchor='start')
     
-    date_svg = sg.TextElement(date_x, date_y, date_text,
-                             size=16,
-                             anchor='end', 
-                             font="Arial", 
-                             color="#666666")
+    # Create separate elements for "Source: " and the citation
+    source_prefix = sg.TextElement(text_right_margin - len(citation_text)*6, date_y, "Source: ",
+                                 size=10,
+                                 anchor='end')
     
-    desc_svg = sg.TextElement(date_x, desc_y, description_text,
-                             size=16,
-                             anchor='end', 
-                             font="Arial", 
-                             color="#666666")
+    citation_element = sg.TextElement(text_right_margin, date_y, citation_text,
+                                    size=10,
+                                    anchor='end')
+    citation_element.root.attrib['style'] = 'text-decoration: underline'
     
-    # Add elements to figure
-    elements = [template_root, title_svg, date_svg, desc_svg]
+    # Create description text element
+    desc_svg = sg.TextElement(text_right_margin, desc_y, description_text,
+                             size=10,
+                             anchor='end')
+    
+    # Calculate position for centered description below Sankey
+    center_desc_x = template_width / 2  # Center horizontally
+    center_desc_y = template_height * 0.83  # Changed from 0.85 to 0.75 (moves it up)
+    
+    # Create centered description text element
+    center_description = sg.TextElement(center_desc_x, center_desc_y, f'"{center_description_text}"',
+                                      size=16,
+                                      anchor='middle')
+    # Add italic style to the underlying element
+    center_description.root.attrib['style'] = 'font-style: italic'
+    
+    # Update elements list to include both text elements
+    elements = [template_root, company_name, type_text, source_prefix, citation_element, desc_svg, center_description]
     
     # Import and add Sankey diagram if it exists
     if sankey_svg_path and os.path.exists(sankey_svg_path):
@@ -61,26 +81,18 @@ def create_merged_svg(
             sankey = sg.fromfile(sankey_svg_path)
             sankey_root = sankey.getroot()
             
-            # Try to get Sankey dimensions
-            try:
-                sankey_width = float(sankey.width or 1000)
-                sankey_height = float(sankey.height or 600)
-            except (AttributeError, TypeError, ValueError):
-                sankey_width = 1000
-                sankey_height = 600
+            # Set Sankey dimensions to match template dimensions
+            sankey_width = template_width
+            sankey_height = template_height
             
-            # Calculate scale factor to fit within template
-            available_width = template_width * 0.9  # Use 90% of template width
-            scale_factor = min(0.8, available_width / sankey_width)
-            
-            # Center position
-            x_center = (template_width - (sankey_width * scale_factor)) / 2
-            y_position = template_height * 0.15  # 15% from top
+            # Calculate position - horizontal center, slightly below vertical center
+            x_center = (template_width - sankey_width) / 2  # Center horizontally
+            y_center = ((template_height - sankey_height) / 2) + (template_height * 0.05)  # 5% below center
             
             # Create a group for the Sankey diagram
             sankey_group = sg.GroupElement([sankey_root])
-            sankey_group.moveto(x_center, y_position)
-            sankey_group.scale(scale_factor)
+            sankey_group.moveto(x_center, y_center)
+            sankey_group.scale(1.0)
             
             elements.append(sankey_group)
             
@@ -123,10 +135,12 @@ def main():
         # Example usage
         merged_figure = create_merged_svg(
             template_svg_path="/Users/thyag/Desktop/MonkTech/Template.svg",
-            title="Monthly Budget Analysis",
-            date_text="November 10, 2024",
-            description_text="Distribution of Monthly Income and Expenses",
-            sankey_svg_path="/Users/thyag/Desktop/MonkTech/sankeymatic.svg"
+            company_name_text="Apple",
+            type_text_value="FY2024Q3 Income Statement",
+            citation_text=" Apple10Q",
+            description_text="3 Month Ending 19 June 2024",
+            sankey_svg_path="/Users/thyag/Desktop/MonkTech/sankeymatic.svg",
+            center_description_text="Your centered description here"
         )
         
         save_merged_svg(merged_figure)
