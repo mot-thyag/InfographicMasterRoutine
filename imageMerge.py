@@ -1,6 +1,7 @@
 import svgutils.transform as sg
 from xml.etree.ElementTree import Element, SubElement, tostring, fromstring
 import os
+from report_parser import ReportParser
 
 def create_merged_svg(
     template_svg_path,
@@ -130,17 +131,36 @@ def save_merged_svg(figure, output_path="merged_output.svg"):
     
     print(f"SVG saved successfully to {output_path}")
 
-def main():
+def main(report_file_path=None, template_svg_path=None, sankey_svg_path=None):
     try:
-        # Example usage
+        # Set default paths if not provided
+        report_file_path = report_file_path or "/Users/thyag/Desktop/MonkTech/AAPL.txt"
+        template_svg_path = template_svg_path or "/Users/thyag/Desktop/MonkTech/Template.svg"
+        sankey_svg_path = sankey_svg_path or "/Users/thyag/Desktop/MonkTech/sankeymatic.svg"
+        
+        # Initialize the report parser
+        parser = ReportParser()
+        
+        # Read the report text from file
+        try:
+            with open(report_file_path, 'r', encoding='utf-8') as file:
+                report_text = file.read()
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Report file not found at {report_file_path}")
+        except Exception as e:
+            raise Exception(f"Error reading report file: {e}")
+        
+        # Extract information from the report
+        report_info = parser.extract_report_info(report_text)
+        
+        if not report_info:
+            raise ValueError("Failed to parse report information")
+        
+        # Create merged SVG with extracted information
         merged_figure = create_merged_svg(
-            template_svg_path="/Users/thyag/Desktop/MonkTech/Template.svg",
-            company_name_text="Apple",
-            type_text_value="FY2024Q3 Income Statement",
-            citation_text=" Apple10Q",
-            description_text="3 Month Ending 19 June 2024",
-            sankey_svg_path="/Users/thyag/Desktop/MonkTech/sankeymatic.svg",
-            center_description_text="Your centered description here"
+            template_svg_path=template_svg_path,
+            sankey_svg_path=sankey_svg_path,
+            **report_info
         )
         
         save_merged_svg(merged_figure)
@@ -151,4 +171,5 @@ def main():
         raise
 
 if __name__ == "__main__":
+    # You can call main() with specific paths if needed
     main()
